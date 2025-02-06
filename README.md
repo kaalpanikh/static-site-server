@@ -16,7 +16,8 @@ The project currently includes:
 ## Project Page
 
 For more details about this project, visit the project page on roadmap.sh:  
-[Static Site Server Project](https://roadmap.sh/projects/static-site-server)
+[Static Site Server Project](https://roadmap.sh/projects/static-site-server) &
+[EC2 Instance Project](https://roadmap.sh/projects/ec2-instance)  
 
 ## Table of Contents
 
