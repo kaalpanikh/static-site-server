@@ -1,6 +1,17 @@
 # Static Site Server Project
 
-This project is designed to help you learn the basics of setting up a web server using a static site served by Nginx. You will deploy your static site on an AWS EC2 instance and use Cloudflare for DNS management. The project is part of the roadmap on [roadmap.sh](https://roadmap.sh/projects/static-site-server).
+This project demonstrates how to set up a secure static website using:
+- Amazon EC2 (Amazon Linux 2023)
+- Nginx web server
+- Let's Encrypt SSL/TLS certificates
+- Custom domain configuration
+- Automated deployment script
+
+The project currently includes:
+1. A static website (`index.html`) with modern styling
+2. Nginx configuration for the static site (`static-site.conf`)
+3. Automated deployment script (`deploy.sh`) for secure file transfer
+4. SSL/TLS certificate setup using Let's Encrypt
 
 ## Project Page
 
@@ -36,6 +47,38 @@ In this project, you will:
 - **Domain and Cloudflare Account:** Your domain (e.g., `nikhilmishra.live`) is managed through Cloudflare, with an A record pointing to your EC2 instance's public IP.
 - **Basic Knowledge of Linux and Nginx:** Familiarity with terminal commands, file editing, and basic Nginx configuration.
 
+## Installation
+
+1.  **Update Your System:**
+
+    ```bash
+    sudo dnf update -y
+    ```
+
+2.  **Install Nginx:**
+
+    ```bash
+    sudo dnf install -y nginx
+    sudo systemctl enable --now nginx
+    ```
+
+3.  **Install Certbot and the Nginx Plugin:**
+
+    ```bash
+    sudo dnf install -y certbot python3-certbot-nginx
+    ```
+
+4.  **Deploy the Static Site:**
+    - Update the deployment script variables in `deploy.sh`:
+      - `REMOTE_USER`: Your EC2 instance username
+      - `REMOTE_HOST`: Your EC2 instance public IP or domain
+      - `SSH_KEY`: Path to your SSH key
+    - Make the script executable and run it:
+      ```bash
+      chmod +x deploy.sh
+      ./deploy.sh
+      ```
+
 ## Setup and Deployment
 
 ### AWS EC2 Setup
@@ -51,37 +94,28 @@ In this project, you will:
 
 ### Nginx Installation and Configuration
 
-1. **Install Nginx:**
-   - **Amazon Linux 2 / Ubuntu:**
-     ```bash
-     sudo yum install nginx -y    # or sudo apt install nginx -y
-     sudo systemctl start nginx
-     sudo systemctl enable nginx
-     ```
+1. **Configure Nginx:**
+    - Our Nginx configuration (`static-site.conf`) is already set up with:
+      - Domain configuration
+      - Root directory settings
+      - Basic security headers
+      - Access and error logging
+    - Copy the configuration to Nginx:
+      ```bash
+      sudo cp static-site.conf /etc/nginx/conf.d/
+      sudo nginx -t
+      sudo systemctl reload nginx
+      ```
 
-2. **Configure Nginx for Your Static Site:**  
-   Create a server block file (e.g., `/etc/nginx/conf.d/static-site.conf`) with the following content:
-   ```nginx
-   server {
-       listen 80;
-       server_name static.nikhilmishra.live;
+2. **Configure DNS:**
+    - Point your domain to your EC2 instance's public IP
+    - Update `server_name` in `static-site.conf` with your domain
 
-       root /usr/share/nginx/html;
-       index index.html index.htm;
-
-       location / {
-           try_files $uri $uri/ =404;
-       }
-
-       access_log /var/log/nginx/static-site-access.log;
-       error_log /var/log/nginx/static-site-error.log;
-   }
-   ```
-3. **Test and Reload Nginx:**
-   ```bash
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
+3. **SSL Certificate Setup:**
+    ```bash
+    sudo certbot --nginx -d your_domain.com
+    ```
+    Follow the prompts to complete the certificate installation.
 
 ### Deploying Your Static Site
 
@@ -209,4 +243,3 @@ This project is provided for educational purposes. Modify and distribute as need
 ---
 
 With these instructions and the provided script, you should be able to deploy your static site server and serve your content at [static.nikhilmishra.live](https://static.nikhilmishra.live) via Cloudflare. Happy coding and learning!
-```
