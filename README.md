@@ -11,6 +11,9 @@ For more details about this project, visit the project page on roadmap.sh:
 
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
+- [Architecture](#architecture)
+- [Deployment Process](#deployment-process)
+- [Request Flow](#request-flow)
 - [Setup and Deployment](#setup-and-deployment)
   - [AWS EC2 Setup](#aws-ec2-setup)
   - [Nginx Installation and Configuration](#nginx-installation-and-configuration)
@@ -35,6 +38,91 @@ In this project, you will:
 - **SSH Access:** Ensure you have SSH access to your EC2 instance with your private key (e.g., `~/.ssh/my_second_key`).
 - **Domain and Cloudflare Account:** Your domain (e.g., `nikhilmishra.live`) is managed through Cloudflare, with an A record pointing to your EC2 instance's public IP.
 - **Basic Knowledge of Linux and Nginx:** Familiarity with terminal commands, file editing, and basic Nginx configuration.
+
+## Architecture
+
+Below is the architecture diagram for the static site server setup:
+
+```mermaid
+graph TD
+    A[Client Browser] -->|HTTPS Request| B[Cloudflare DNS]
+    B -->|HTTP Request| C[AWS EC2 Instance]
+    C -->|Serves| D[Nginx Web Server]
+    D -->|Hosts| E[Static Website Files]
+    F[Local Development Environment] -->|Deploy via SCP| C
+    
+    subgraph "AWS Cloud"
+        C
+        D
+        E
+    end
+    
+    subgraph "Cloudflare"
+        B -->|SSL Termination| B1[Edge Server]
+        B1 -->|Cache| B2[CDN]
+    end
+    
+    classDef aws fill:#FF9900,stroke:#232F3E,color:white;
+    classDef cloudflare fill:#F6821F,stroke:#232F3E,color:white;
+    classDef nginx fill:#009639,stroke:#232F3E,color:white;
+    class C,E aws;
+    class B,B1,B2 cloudflare;
+    class D nginx;
+```
+
+## Deployment Process
+
+The following diagram illustrates the deployment process using the `deploy.sh` script:
+
+```mermaid
+flowchart TD
+    A[Start Deployment] --> B{SSH Key Exists?}
+    B -->|No| C[Error: SSH Key Not Found]
+    B -->|Yes| D[Test SSH Connection]
+    D -->|Failed| E[Error: SSH Connection Failed]
+    D -->|Success| F[Create Temporary Directory on Server]
+    F -->|Success| G[Copy Files to Temporary Directory]
+    G -->|Failed| H[Clean Up & Exit]
+    G -->|Success| I[Move Files to Final Location]
+    I -->|Failed| J[Clean Up & Exit]
+    I -->|Success| K[Deployment Complete]
+    
+    style A fill:#4CAF50,stroke:#006400,color:white
+    style K fill:#4CAF50,stroke:#006400,color:white
+    style C fill:#FF5252,stroke:#B71C1C,color:white
+    style E fill:#FF5252,stroke:#B71C1C,color:white
+    style H fill:#FF5252,stroke:#B71C1C,color:white
+    style J fill:#FF5252,stroke:#B71C1C,color:white
+```
+
+## Request Flow
+
+This sequence diagram shows how a client request flows through the system:
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Browser as Browser
+    participant Cloudflare as Cloudflare
+    participant EC2 as EC2 Instance
+    participant Nginx as Nginx Server
+    
+    User->>Browser: Enter static.nikhilmishra.live
+    Browser->>Cloudflare: DNS Resolution
+    Cloudflare-->>Browser: IP Address (44.204.60.96)
+    Browser->>Cloudflare: HTTPS Request
+    Note over Cloudflare: SSL Termination
+    Cloudflare->>EC2: HTTP Request
+    EC2->>Nginx: Forward Request
+    Nginx->>Nginx: Process Request
+    Note over Nginx: Find Static Files
+    Nginx-->>EC2: Serve HTML/CSS/JS
+    EC2-->>Cloudflare: HTTP Response
+    Cloudflare-->>Browser: HTTPS Response
+    Browser-->>User: Display Content
+    
+    Note over Cloudflare,EC2: Cloudflare is set to 'Flexible' SSL mode,<br/>terminating SSL at Cloudflare's edge
+```
 
 ## Setup and Deployment
 
@@ -209,4 +297,3 @@ This project is provided for educational purposes. Modify and distribute as need
 ---
 
 With these instructions and the provided script, you should be able to deploy your static site server and serve your content at [static.nikhilmishra.live](https://static.nikhilmishra.live) via Cloudflare. Happy coding and learning!
-```
