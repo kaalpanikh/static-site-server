@@ -1,11 +1,23 @@
 # Static Site Server Project
 
-This project is designed to help you learn the basics of setting up a web server using a static site served by Nginx. You will deploy your static site on an AWS EC2 instance and use Cloudflare for DNS management. The project is part of the roadmap on [roadmap.sh](https://roadmap.sh/projects/static-site-server).
+This project demonstrates how to set up a secure static website using:
+- Amazon EC2 (Amazon Linux 2023)
+- Nginx web server
+- Let's Encrypt SSL/TLS certificates
+- Custom domain configuration
+- Automated deployment script
+
+The project currently includes:
+1. A static website (`index.html`) with modern styling
+2. Nginx configuration for the static site (`static-site.conf`)
+3. Automated deployment script (`deploy.sh`) for secure file transfer
+4. SSL/TLS certificate setup using Let's Encrypt
 
 ## Project Page
 
 For more details about this project, visit the project page on roadmap.sh:  
-[Static Site Server Project](https://roadmap.sh/projects/static-site-server)
+[Static Site Server Project](https://roadmap.sh/projects/static-site-server) &
+[EC2 Instance Project](https://roadmap.sh/projects/ec2-instance)  
 
 ## Table of Contents
 
@@ -14,6 +26,7 @@ For more details about this project, visit the project page on roadmap.sh:
 - [Architecture](#architecture)
 - [Deployment Process](#deployment-process)
 - [Request Flow](#request-flow)
+- [Installation](#installation)
 - [Setup and Deployment](#setup-and-deployment)
   - [AWS EC2 Setup](#aws-ec2-setup)
   - [Nginx Installation and Configuration](#nginx-installation-and-configuration)
@@ -124,6 +137,123 @@ sequenceDiagram
     Note over Cloudflare,EC2: Cloudflare is set to 'Flexible' SSL mode,<br/>terminating SSL at Cloudflare's edge
 ```
 
+## Architecture
+
+Below is the architecture diagram for the static site server setup:
+
+```mermaid
+graph TD
+    A[Client Browser] -->|HTTPS Request| B[Cloudflare DNS]
+    B -->|HTTP Request| C[AWS EC2 Instance]
+    C -->|Serves| D[Nginx Web Server]
+    D -->|Hosts| E[Static Website Files]
+    F[Local Development Environment] -->|Deploy via SCP| C
+    
+    subgraph "AWS Cloud"
+        C
+        D
+        E
+    end
+    
+    subgraph "Cloudflare"
+        B -->|SSL Termination| B1[Edge Server]
+        B1 -->|Cache| B2[CDN]
+    end
+    
+    classDef aws fill:#FF9900,stroke:#232F3E,color:white;
+    classDef cloudflare fill:#F6821F,stroke:#232F3E,color:white;
+    classDef nginx fill:#009639,stroke:#232F3E,color:white;
+    class C,E aws;
+    class B,B1,B2 cloudflare;
+    class D nginx;
+```
+
+## Deployment Process
+
+The following diagram illustrates the deployment process using the `deploy.sh` script:
+
+```mermaid
+flowchart TD
+    A[Start Deployment] --> B{SSH Key Exists?}
+    B -->|No| C[Error: SSH Key Not Found]
+    B -->|Yes| D[Test SSH Connection]
+    D -->|Failed| E[Error: SSH Connection Failed]
+    D -->|Success| F[Create Temporary Directory on Server]
+    F -->|Success| G[Copy Files to Temporary Directory]
+    G -->|Failed| H[Clean Up & Exit]
+    G -->|Success| I[Move Files to Final Location]
+    I -->|Failed| J[Clean Up & Exit]
+    I -->|Success| K[Deployment Complete]
+    
+    style A fill:#4CAF50,stroke:#006400,color:white
+    style K fill:#4CAF50,stroke:#006400,color:white
+    style C fill:#FF5252,stroke:#B71C1C,color:white
+    style E fill:#FF5252,stroke:#B71C1C,color:white
+    style H fill:#FF5252,stroke:#B71C1C,color:white
+    style J fill:#FF5252,stroke:#B71C1C,color:white
+```
+
+## Request Flow
+
+This sequence diagram shows how a client request flows through the system:
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Browser as Browser
+    participant Cloudflare as Cloudflare
+    participant EC2 as EC2 Instance
+    participant Nginx as Nginx Server
+    
+    User->>Browser: Enter static.nikhilmishra.live
+    Browser->>Cloudflare: DNS Resolution
+    Cloudflare-->>Browser: IP Address (44.204.60.96)
+    Browser->>Cloudflare: HTTPS Request
+    Note over Cloudflare: SSL Termination
+    Cloudflare->>EC2: HTTP Request
+    EC2->>Nginx: Forward Request
+    Nginx->>Nginx: Process Request
+    Note over Nginx: Find Static Files
+    Nginx-->>EC2: Serve HTML/CSS/JS
+    EC2-->>Cloudflare: HTTP Response
+    Cloudflare-->>Browser: HTTPS Response
+    Browser-->>User: Display Content
+    
+    Note over Cloudflare,EC2: Cloudflare is set to 'Flexible' SSL mode,<br/>terminating SSL at Cloudflare's edge
+```
+
+## Installation
+
+1.  **Update Your System:**
+
+    ```bash
+    sudo dnf update -y
+    ```
+
+2.  **Install Nginx:**
+
+    ```bash
+    sudo dnf install -y nginx
+    sudo systemctl enable --now nginx
+    ```
+
+3.  **Install Certbot and the Nginx Plugin:**
+
+    ```bash
+    sudo dnf install -y certbot python3-certbot-nginx
+    ```
+
+4.  **Deploy the Static Site:**
+    - Update the deployment script variables in `deploy.sh`:
+      - `REMOTE_USER`: Your EC2 instance username
+      - `REMOTE_HOST`: Your EC2 instance public IP or domain
+      - `SSH_KEY`: Path to your SSH key
+    - Make the script executable and run it:
+      ```bash
+      chmod +x deploy.sh
+      ./deploy.sh
+      ```
+
 ## Setup and Deployment
 
 ### AWS EC2 Setup
@@ -139,37 +269,28 @@ sequenceDiagram
 
 ### Nginx Installation and Configuration
 
-1. **Install Nginx:**
-   - **Amazon Linux 2 / Ubuntu:**
-     ```bash
-     sudo yum install nginx -y    # or sudo apt install nginx -y
-     sudo systemctl start nginx
-     sudo systemctl enable nginx
-     ```
+1. **Configure Nginx:**
+    - Our Nginx configuration (`static-site.conf`) is already set up with:
+      - Domain configuration
+      - Root directory settings
+      - Basic security headers
+      - Access and error logging
+    - Copy the configuration to Nginx:
+      ```bash
+      sudo cp static-site.conf /etc/nginx/conf.d/
+      sudo nginx -t
+      sudo systemctl reload nginx
+      ```
 
-2. **Configure Nginx for Your Static Site:**  
-   Create a server block file (e.g., `/etc/nginx/conf.d/static-site.conf`) with the following content:
-   ```nginx
-   server {
-       listen 80;
-       server_name static.nikhilmishra.live;
+2. **Configure DNS:**
+    - Point your domain to your EC2 instance's public IP
+    - Update `server_name` in `static-site.conf` with your domain
 
-       root /usr/share/nginx/html;
-       index index.html index.htm;
-
-       location / {
-           try_files $uri $uri/ =404;
-       }
-
-       access_log /var/log/nginx/static-site-access.log;
-       error_log /var/log/nginx/static-site-error.log;
-   }
-   ```
-3. **Test and Reload Nginx:**
-   ```bash
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
+3. **SSL Certificate Setup:**
+    ```bash
+    sudo certbot --nginx -d your_domain.com
+    ```
+    Follow the prompts to complete the certificate installation.
 
 ### Deploying Your Static Site
 
